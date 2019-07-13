@@ -3,22 +3,38 @@
 /// <reference path="graphics.ts" />
 
 
-var crret = createCanvas(800,600)
-var canvas = crret.canvas
-var ctxt = crret.ctxt
-var gfx = new Graphics(ctxt)
-var goldenratio = 1.61803398875
+let crret = createCanvas(800,600)
+let canvas = crret.canvas
+let ctxt = crret.ctxt
+let gfx = new Graphics(ctxt)
+let goldenratio = 1.61803398875
+let ditheroffset1 = (y,mask) => y * mask.length * 0.5
+let ditheroffset2 = (y,mask) => y
+let ditheroffset3 = (y,mask) => 0
+let ditheroffset4 = (y,mask) => y * mask.length * (goldenratio - 1)
 
 loadImages(['test.bmp']).then(arr => {
-    var image = image2imagedata(arr[0])
-    var ditheroffset1 = (y,mask) => y * mask.length * 0.5
-    var ditheroffset2 = (y,mask) => y
-    var ditheroffset3 = (y,mask) => 0
-    var ditheroffset4 = (y,mask) => y * mask.length * (goldenratio - 1)
-    dither(gfx,image,0,0,60,ditheroffset3)
+    let image = image2imagedata(arr[0])
+
+    dither(gfx,image,0,0,5,ditheroffset1)
     // calcfraction(0.67)
 })
 
+let urlinput = document.querySelector('input')
+urlinput.addEventListener('change', e => {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+        loadImages([e.target.result]).then(arr => {
+            let image = image2imagedata(arr[0])
+            gfx.ctxt.canvas.width = image.width
+            gfx.ctxt.canvas.height = image.height
+            gfx.ctxt.clearRect(0,0,image.width,image.height)
+            dither(gfx,image,0,0,5,ditheroffset1)
+        })
+    };
+    reader.readAsDataURL(urlinput.files[0]);
+
+})
 
 function dither(gfx:Graphics,image:ImageData,x:number,y:number,plateaus:number,ditherOffsetter:(y:number, mask:boolean[]) => number){
     gfx.load()
@@ -114,14 +130,4 @@ function calcgcd(a, b) {
         return calcgcd(a, b % a);
     else
         return calcgcd(b, a % b);
-};
-
-function calcdecplaces(number, precision){
-    var res = 0
-    while(number > precision){
-        number *= 10
-        number -= Math.floor(number)
-        res++
-    }
-    return res
 }
