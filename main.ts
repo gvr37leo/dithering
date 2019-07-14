@@ -3,40 +3,88 @@
 /// <reference path="graphics.ts" />
 
 
-let crret = createCanvas(800,600)
-let canvas = crret.canvas
-let ctxt = crret.ctxt
+
+let canvas = document.querySelector('canvas')
+let ctxt = canvas.getContext('2d')
 let gfx = new Graphics(ctxt)
 let goldenratio = 1.61803398875
+
+let testimagesinput = document.querySelector('#testimages') as HTMLSelectElement
+let ditherlevelinput = document.querySelector('#levels') as HTMLInputElement
+let patternlengthinput = document.querySelector('#patternlength') as HTMLInputElement
+let offsetmethodinput = document.querySelector('#offsetmethod') as HTMLSelectElement
+
 let ditheroffset1 = (y,mask) => y * mask.length * 0.5
 let ditheroffset2 = (y,mask) => y
 let ditheroffset3 = (y,mask) => 0
 let ditheroffset4 = (y,mask) => y * mask.length * (goldenratio - 1)
+var ditherOffsetters = [ditheroffset1,ditheroffset2,ditheroffset3,ditheroffset4]
+let ditherfunc = ditheroffset1
+let ditherlevels = ditherlevelinput.valueAsNumber
+let gdcprecision = patternlengthinput.valueAsNumber
+let globalimage = null
 
-loadImages(['test.bmp']).then(arr => {
-    let image = image2imagedata(arr[0])
-
-    dither(gfx,image,0,0,5,ditheroffset1)
-    // calcfraction(0.67)
+loadImages(['res/verticalgradient.bmp']).then(arr => {
+    globalimage = image2imagedata(arr[0])
+    gfx.ctxt.canvas.width = globalimage.width
+    gfx.ctxt.canvas.height = globalimage.height
+    gfx.ctxt.clearRect(0,0,globalimage.width,globalimage.height)
+    calldither()
 })
 
-let urlinput = document.querySelector('input')
+let urlinput = document.querySelector('#imageinput')
+var preview = document.querySelector('img')
+
+
+
+testimagesinput.addEventListener('change', e => {
+    preview.src = testimagesinput.value
+    loadImages([testimagesinput.value]).then(arr => {
+        globalimage = image2imagedata(arr[0])
+        gfx.ctxt.canvas.width = globalimage.width
+        gfx.ctxt.canvas.height = globalimage.height
+        gfx.ctxt.clearRect(0,0,globalimage.width,globalimage.height)
+        calldither()
+    })
+})
+
+ditherlevelinput.addEventListener('change', e => {
+    ditherlevels = ditherlevelinput.valueAsNumber
+    calldither()
+})
+
+patternlengthinput.addEventListener('change', e => {
+    gdcprecision = patternlengthinput.valueAsNumber
+    calldither()
+})
+
+offsetmethodinput.addEventListener('change', e => {
+    ditherfunc = ditherOffsetters[parseInt(offsetmethodinput.value)]
+    calldither()
+})
+
 urlinput.addEventListener('change', e => {
     var reader = new FileReader();
     reader.onload = function (e) {
+        preview.src = e.target.result
         loadImages([e.target.result]).then(arr => {
-            let image = image2imagedata(arr[0])
-            gfx.ctxt.canvas.width = image.width
-            gfx.ctxt.canvas.height = image.height
-            gfx.ctxt.clearRect(0,0,image.width,image.height)
-            dither(gfx,image,0,0,5,ditheroffset1)
+            globalimage = image2imagedata(arr[0])
+            gfx.ctxt.canvas.width = globalimage.width
+            gfx.ctxt.canvas.height = globalimage.height
+            gfx.ctxt.clearRect(0,0,globalimage.width,globalimage.height)
+            calldither()
         })
     };
     reader.readAsDataURL(urlinput.files[0]);
-
 })
 
-function dither(gfx:Graphics,image:ImageData,x:number,y:number,plateaus:number,ditherOffsetter:(y:number, mask:boolean[]) => number){
+
+
+function calldither(){
+    dither(gfx,globalimage,ditherlevels,ditherfunc)
+}
+
+function dither(gfx:Graphics,image:ImageData,plateaus:number,ditherOffsetter:(y:number, mask:boolean[]) => number){
     gfx.load()
     let masks = new Map<number,boolean[]>()
     masks.set(0,[false])
@@ -112,7 +160,7 @@ function image2imagedata(img:HTMLImageElement){
 function calcfraction(decimal:number):number[]{
     var integral = Math.floor(decimal)
     var fraction = decimal - integral
-    var precision = 10
+    var precision = gdcprecision
     var roundFraction = Math.round(precision * fraction)
     var gcd = calcgcd(roundFraction, precision)
     var numerator = roundFraction / gcd
